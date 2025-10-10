@@ -35,6 +35,15 @@ jobs:
           username: ${{ secrets.VM_USERNAME }}
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
-            cd gridspark-backend
+            set -e
+            
+            # IMPORTANT: Replace this with the full path to your project directory on the VM
+            cd /path/to/your/gridspark-backend 
+            
+            echo "Successfully changed directory. Pulling latest image..."
             docker compose pull
+            
+            echo "Image pulled. Restarting containers..."
             docker compose up -d
+            
+            echo "Deployment successful!"
