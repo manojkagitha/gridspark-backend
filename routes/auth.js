@@ -3,36 +3,40 @@ const bcrypt = require('bcryptjs');
 const db = require('../db'); // Our promise-based pool
 const router = express.Router();
 
-// Signup route using full async/await
+// Signup route updated with new fields
 router.post('/register', async (req, res) => {
-  const { email, password } = req.body;
+  // Destructure all fields from the request body
+  const { firstName, lastName, email, password, phone } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required.' });
+  // --- Updated Validation ---
+  if (!firstName || !lastName || !email || !password) {
+    return res.status(400).json({ error: 'First name, last name, email, and password are required.' });
   }
 
   try {
-    // 1. Hash the password
     const hashed = await bcrypt.hash(password, 10);
 
-    // 2. Insert the new user into the database
-    const sql = 'INSERT INTO users (email, password) VALUES (?, ?)';
-    await db.query(sql, [email, hashed]);
+    // --- Updated SQL Query ---
+    const sql = `
+      INSERT INTO users (first_name, last_name, email, password, phone) 
+      VALUES (?, ?, ?, ?, ?)
+    `;
+    
+    // The 'phone' field will be null if not provided, which is allowed by the database
+    await db.query(sql, [firstName, lastName, email, hashed, phone || null]);
 
-    // 3. Send a success response
     res.status(201).json({ message: 'User registered successfully!' });
 
   } catch (error) {
-    // This will catch errors from both bcrypt and the database query
     if (error.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({ error: 'Email already exists.' });
     }
-    // For any other errors
+    console.error(error); // Log the actual error on the server
     res.status(500).json({ error: 'An error occurred during registration.' });
   }
 });
 
-// Login route (also refactored for consistency)
+// Login route (no changes needed here)
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -58,6 +62,7 @@ router.post('/login', async (req, res) => {
     res.json({ message: 'Login successful!' });
 
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'An error occurred during login.' });
   }
 });
