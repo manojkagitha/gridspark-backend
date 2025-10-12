@@ -6,20 +6,33 @@ services:
     container_name: gridspark_app
     restart: unless-stopped
     env_file: .env
+    expose:
+      - "3000"
     depends_on:
       - db
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   db:
     image: mysql:8.0
     container_name: gridspark_db
     restart: unless-stopped
     env_file: .env
+    command: --default-authentication-plugin=mysql_native_password
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   nginx:
     image: nginx:latest
@@ -29,8 +42,11 @@ services:
       - "80:80"
       - "443:443"
     volumes:
+      # Nginx virtual host config
       - ./nginx:/etc/nginx/conf.d
+      # SSL certs and keys from Certbot
       - ./certbot/conf:/etc/letsencrypt
+      # Temporary webroot for ACME challenge
       - ./certbot/www:/var/www/certbot
     depends_on:
       - app
@@ -40,9 +56,13 @@ services:
   certbot:
     image: certbot/certbot
     container_name: gridspark_certbot
+    restart: unless-stopped
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
+    entrypoint: /bin/sh
+    networks:
+      - app-network
 
 volumes:
   mysql_data:
