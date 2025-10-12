@@ -39,6 +39,7 @@ services:
       - ./nginx:/etc/nginx/conf.d
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
+      - ./dist:/var/www/frontend
     depends_on:
       - app
     networks:
