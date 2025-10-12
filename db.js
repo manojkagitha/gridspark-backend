@@ -1,19 +1,13 @@
-// Import the dotenv library to read .env files
-require('dotenv').config();
+# --- Database Credentials ---
+# Note: MYSQL_ROOT_PASSWORD is used only on the first run to initialize the db root user.
+MYSQL_ROOT_PASSWORD=your_super_secret_root_password
+MYSQL_DATABASE=gridspark_db
+MYSQL_USER=your_app_db_user
+MYSQL_PASSWORD=your_super_secret_app_password
 
-// Import the mysql2 library
-const mysql = require('mysql2');
-
-// Create a connection pool using the credentials from your .env file
-const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-});
-
-// Export the pool's promise-based interface for modern async/await syntax
-module.exports = pool.promise();
+# --- Backend Application Credentials ---
+# These must match the MYSQL_USER and MYSQL_PASSWORD above
+DB_HOST=db
+DB_USER=your_app_db_user
+DB_PASSWORD=your_super_secret_app_password
+DB_NAME=gridspark_db
