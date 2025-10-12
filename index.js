@@ -10,67 +10,88 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS: allow only your frontend domain
-const allowedOrigins = [
-  'https://www.gridsparksolutions.com'
-];
+// ======================================================
+// ✅ HEALTH CHECK (for Docker + uptime monitors)
+// ======================================================
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
 
-const corsOptions = {
-  origin: function (origin, callback) {
+// ======================================================
+// ✅ SECURITY & PERFORMANCE MIDDLEWARE
+// ======================================================
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
+app.use(compression());
+app.use(express.json({ limit: '1mb' }));
+
+// ======================================================
+// ✅ CORS CONFIGURATION (only allow frontend domain)
+// ======================================================
+const allowedOrigins = ['https://www.gridsparksolutions.com'];
+app.use(cors({
+  origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'OPTIONS'],
   credentials: true,
-  exposedHeaders: ['Content-Type', 'Authorization']
-};
+}));
 
-app.use(cors(corsOptions));
-app.use(helmet()); // Security headers
-app.use(compression()); // Response compression
-app.use(express.json()); // Parse JSON bodies
-
-// Logger for requests
-app.use(morgan('combined'));
-
-// Rate limiter to protect API from abuse
+// ======================================================
+// ✅ RATE LIMITING
+// ======================================================
 const limiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute window
-  max: 60, // limit each IP to 60 requests per windowMs
-  message: 'Too many requests from this IP, please try again after a minute.'
+  windowMs: 60 * 1000, // 1 minute
+  max: 100, // max requests per minute
+  message: { error: 'Too many requests. Please try again in a minute.' },
 });
 app.use(limiter);
 
-// Import and use auth routes
+// ======================================================
+// ✅ LOGGING
+// ======================================================
+app.use(morgan('combined'));
+
+// ======================================================
+// ✅ ROUTES
+// ======================================================
 const authRoutes = require('./routes/auth');
 app.use('/api', authRoutes);
 
-// Root route
+// Base route (informational)
 app.get('/', (req, res) => {
-  res.status(200).send('The CI/CD pipeline works! This is an automated and secure update.');
+  res.status(200).send('✅ GridSpark API is live and secure 🚀');
 });
 
-// Global error handler middleware
+// ======================================================
+// ✅ GLOBAL ERROR HANDLER
+// ======================================================
 app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err.stack || err);
-  res.status(500).json({ message: 'Internal server error' });
+  console.error('Unhandled Error:', err.message || err);
+  res.status(500).json({ error: 'Internal server error' });
 });
 
-// Start server listening
+// ======================================================
+// ✅ START SERVER
+// ======================================================
 app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT} [NODE_ENV: ${process.env.NODE_ENV || 'development'}]`);
+  console.log(`✅ GridSpark API running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
 });
 
-// Graceful shutdown on uncaught errors
-process.on('uncaughtException', err => {
+// ======================================================
+// ✅ GRACEFUL SHUTDOWN HANDLERS
+// ======================================================
+process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
-  process.exit(1); // Consider monitoring with a process manager for auto-restart
+  process.exit(1);
 });
 
-process.on('unhandledRejection', err => {
+process.on('unhandledRejection', (err) => {
   console.error('Unhandled Rejection:', err);
   process.exit(1);
 });

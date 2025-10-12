@@ -1,69 +1,90 @@
-version: '3.8'
+version: "3.9"
 
 services:
+  # ======================================================
+  # Node.js Application (Backend API)
+  # ======================================================
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: gridspark_app
     restart: unless-stopped
     env_file: .env
     expose:
       - "3000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - app-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/health').then(r=>{if(r.status===200)process.exit(0);else process.exit(1)}).catch(()=>process.exit(1))\""]
       interval: 30s
       timeout: 10s
       retries: 5
 
+  # ======================================================
+  # MySQL Database
+  # ======================================================
   db:
     image: mysql:8.0
     container_name: gridspark_db
     restart: unless-stopped
     env_file: .env
-    command: --default-authentication-plugin=mysql_native_password
+    command: --default-authentication-plugin=caching_sha2_password
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - app-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 30s
       timeout: 10s
       retries: 5
 
+  # ======================================================
+  # NGINX Reverse Proxy + SSL
+  # ======================================================
   nginx:
     image: nginx:latest
     container_name: gridspark_nginx
     restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      # Nginx virtual host config
+      # Custom Nginx config
       - ./nginx:/etc/nginx/conf.d
-      # SSL certs and keys from Certbot
+      # SSL certs & keys (managed by Certbot)
       - ./certbot/conf:/etc/letsencrypt
-      # Temporary webroot for ACME challenge
+      # Webroot for ACME challenge
       - ./certbot/www:/var/www/certbot
-    depends_on:
-      - app
     networks:
       - app-network
 
+  # ======================================================
+  # Certbot (Let's Encrypt)
+  # ======================================================
   certbot:
-    image: certbot/certbot
+    image: certbot/certbot:latest
     container_name: gridspark_certbot
     restart: unless-stopped
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
-    entrypoint: /bin/sh
     networks:
       - app-network
+    # Idle container until manual or cron renewal
+    entrypoint: /bin/sh -c "trap exit TERM; while :; do sleep 6h & wait $${!}; done"
 
+# ======================================================
+# Volumes & Networks
+# ======================================================
 volumes:
   mysql_data:
 
