@@ -39,13 +39,13 @@ services:
       - ./nginx:/etc/nginx/conf.d
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
-      - ./dist:/var/www/frontend
+      # The volume for '/dist' has been removed as it's no longer needed
     depends_on:
       - app
     networks:
       - app-network
 
-  # 4. Certbot Service for SSL (This is the new part)
+  # 4. Certbot Service for SSL
   certbot:
     image: certbot/certbot
     container_name: gridspark_certbot
