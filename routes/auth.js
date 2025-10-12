@@ -10,20 +10,28 @@ router.use(cors({
   credentials: true,
 }));
 
-// Signup route - registration endpoint
+// Signup route - registration endpoint (UPDATED)
 router.post('/register', async (req, res) => {
-  const { firstName, lastName, email, password, phone } = req.body;
+  // Accepts a single `fullName` from the frontend
+  const { fullName, email, password, phone } = req.body;
 
-  // Strong server-side validation
-  if (!firstName || !lastName || !email || !password) {
-    return res.status(400).json({ error: 'First name, last name, email, and password are required.' });
+  // --- FIX 1: Split fullName into firstName and lastName ---
+  const nameParts = fullName ? fullName.trim().split(' ') : [];
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
+
+  // --- Updated Validation ---
+  if (!firstName || !email || !password) {
+    return res.status(400).json({ error: 'Full name, email, and password are required.' });
   }
-  // Phone optional, but add email format check (basic)
   if (!email.match(/^[\w.-]+@[\w.-]+\.\w+$/)) {
     return res.status(400).json({ error: 'Valid email required.' });
   }
-  if (password.length < 8) {
-    return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+
+  // --- FIX 2: Enforce Strong Password Complexity on the Backend ---
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+  if (!passwordRegex.test(password)) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a special character.' });
   }
 
   try {
@@ -32,20 +40,21 @@ router.post('/register', async (req, res) => {
       INSERT INTO users (first_name, last_name, email, password, phone) 
       VALUES (?, ?, ?, ?, ?)
     `;
+    // Use the new firstName and lastName variables from the split fullName
     await db.query(sql, [firstName, lastName, email, hashed, phone || null]);
-    // Log registrations (for audit)
+    
     console.log(`New user registered: ${email} (${firstName} ${lastName})`);
     res.status(201).json({ message: 'User registered successfully!' });
   } catch (error) {
     if (error.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({ error: 'Email already exists.' });
     }
-    console.error('Registration error:', error); // Improved server logging
+    console.error('Registration error:', error);
     res.status(500).json({ error: 'An error occurred during registration.' });
   }
 });
 
-// Login route - authentication endpoint
+// Login route - authentication endpoint (No changes needed)
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
