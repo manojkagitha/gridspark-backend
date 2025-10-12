@@ -6,7 +6,7 @@ services:
     build: .
     container_name: gridspark_app
     restart: unless-stopped
-    env_file: .env # Load environment variables from .env file
+    env_file: .env
     environment:
       - DB_HOST=db
       - NODE_ENV=production
@@ -21,7 +21,7 @@ services:
     image: mysql:8.0
     container_name: gridspark_db
     restart: unless-stopped
-    env_file: .env # Load environment variables from .env file
+    env_file: .env
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
@@ -43,6 +43,14 @@ services:
       - app
     networks:
       - app-network
+
+  # 4. Certbot Service for SSL (This is the new part)
+  certbot:
+    image: certbot/certbot
+    container_name: gridspark_certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
 
 volumes:
   mysql_data:
