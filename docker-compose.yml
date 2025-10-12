@@ -1,39 +1,52 @@
 version: '3.8'
 
 services:
-  db:
-    image: mysql:8.0
-    container_name: mysql_db
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: admin1234
-      MYSQL_DATABASE: gridspark_db
-    volumes:
-      - mysql_data:/var/lib/mysql
-
+  # 1. Backend Application Service
   app:
-    container_name: node_app
     build: .
-    restart: always
-    ports:
-      - "3000:3000"
+    container_name: gridspark_app
+    restart: unless-stopped
+    env_file: .env # Load environment variables from .env file
     environment:
-      DATABASE_HOST: db
-      DATABASE_USER: root
-      DATABASE_PASSWORD: admin1234
-      DATABASE_NAME: gridspark_db
+      - DB_HOST=db
+      - NODE_ENV=production
+      - PORT=3000
     depends_on:
       - db
-  # Nginx Reverse Proxy Service
+    networks:
+      - app-network
+
+  # 2. Database Service
+  db:
+    image: mysql:8.0
+    container_name: gridspark_db
+    restart: unless-stopped
+    env_file: .env # Load environment variables from .env file
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - app-network
+
+  # 3. Nginx Reverse Proxy Service
   nginx:
     image: nginx:latest
-    container_name: nginx_proxy
+    container_name: gridspark_nginx
+    restart: unless-stopped
     ports:
-      - "80:80" # Map host port 80 to container port 80
+      - "80:80"
+      - "443:443"
     volumes:
       - ./nginx:/etc/nginx/conf.d
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
     depends_on:
       - app
+    networks:
+      - app-network
 
 volumes:
   mysql_data:
+
+networks:
+  app-network:
+    driver: bridge
